@@ -1,15 +1,12 @@
 "use client";
 
-import { ExternalLink, Heart, Info, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { ExternalLink, Info, Pencil, Trash2 } from "lucide-react";
 
 export type ProjectCardData = {
-  id: string;
   title: string;
   description: string;
   techStack: string[];
   githubUrl?: string;
-  likes?: number;
   onEdit: () => void;
   onDelete: () => void;
   onDetails: () => void;
@@ -18,73 +15,19 @@ export type ProjectCardData = {
 type ProjectCardProps = ProjectCardData;
 
 export default function ProjectCard({
-  id,
   title,
   description,
   techStack,
   githubUrl,
-  likes = 0,
   onEdit,
   onDelete,
   onDetails,
 }: ProjectCardProps) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(likes);
-  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
-
-  async function toggleLike() {
-    if (isUpdatingLike) {
-      return;
-    }
-
-    const nextLiked = !isLiked;
-    const previousLiked = isLiked;
-    const previousCount = likeCount;
-    setIsLiked(nextLiked);
-    setLikeCount((count) => count + (nextLiked ? 1 : -1));
-    setIsUpdatingLike(true);
-
-    try {
-      const response = await fetch(`/api/projects/${id}/like`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ liked: nextLiked }),
-      });
-      if (!response.ok) {
-        throw new Error("Unable to update like");
-      }
-
-      const data = (await response.json()) as { likes: number };
-      setLikeCount(data.likes);
-    } catch {
-      setIsLiked(previousLiked);
-      setLikeCount(previousCount);
-    } finally {
-      setIsUpdatingLike(false);
-    }
-  }
-
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-zinc-900 p-5 text-zinc-100 shadow-lg shadow-black/10 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/50 hover:shadow-[0_0_30px_-12px_rgba(52,211,153,0.7)]">
       <div className="pointer-events-none absolute inset-x-8 -top-px h-px bg-linear-to-r from-transparent via-emerald-300/80 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <div className="flex items-start justify-between gap-4">
         <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
-        <button
-          type="button"
-          aria-label={isLiked ? `Unlike ${title}` : `Like ${title}`}
-          aria-pressed={isLiked}
-          title={isLiked ? "Unlike project" : "Like project"}
-          onClick={() => void toggleLike()}
-          disabled={isUpdatingLike}
-          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-wait disabled:opacity-70 ${
-            isLiked
-              ? "text-rose-400 hover:bg-rose-400/10"
-              : "text-zinc-500 hover:bg-white/6 hover:text-rose-300"
-          }`}
-        >
-          <Heart aria-hidden="true" size={17} fill={isLiked ? "currentColor" : "none"} />
-          <span>{likeCount}</span>
-        </button>
       </div>
 
       <p className="mt-3 flex-1 text-sm leading-6 text-zinc-400">{description}</p>

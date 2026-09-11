@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, X } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
 import ContributionHeatmap, {
@@ -20,7 +20,6 @@ type Project = {
   description: string;
   techStack: string[];
   githubUrl?: string;
-  likes?: number;
   userId: string | { _id: string };
   createdAt?: string;
 };
@@ -90,6 +89,8 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState<ProjectForm>(emptyForm);
@@ -213,13 +214,18 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleDelete(project: Project) {
-    const confirmed = window.confirm(`Delete "${project.title}"? This cannot be undone.`);
-    if (!confirmed) {
+  function requestDelete(project: Project) {
+    setDeletingProject(project);
+  }
+
+  async function confirmDelete() {
+    if (!deletingProject || isDeleting) {
       return;
     }
 
+    const project = deletingProject;
     const ownerId = typeof project.userId === "string" ? project.userId : project.userId._id;
+    setIsDeleting(true);
 
     try {
       const response = await fetch(`/api/projects/${project._id}`, {
@@ -234,20 +240,24 @@ export default function DashboardPage() {
 
       setProjects((current) => current.filter((item) => item._id !== project._id));
       setDetailsProject(null);
+      setDeletingProject(null);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Unable to delete project");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
   return (
-    <main className="flex-1 bg-zinc-950 px-5 py-10 text-zinc-100 sm:px-8 lg:py-14">
+    <main className="relative flex-1 overflow-hidden bg-zinc-950 px-5 py-10 text-zinc-100 sm:px-8 lg:py-14">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-96 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.1),transparent_65%)]" />
       <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col gap-5 border-b border-white/10 pb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div className="relative z-10 flex flex-col gap-6 border-b border-white/10 pb-9 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">
               Developer dashboard
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
               Your development pulse
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-400">
@@ -264,26 +274,28 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <section className="mt-8 rounded-xl bg-white p-5 text-zinc-950 shadow-xl shadow-black/10 sm:p-6">
+        <section className="relative z-10 mt-8 rounded-2xl border border-emerald-900/20 bg-white p-5 text-zinc-950 shadow-[0_20px_60px_-35px_rgba(16,185,129,0.45)] sm:p-7">
           <ContributionHeatmap contributions={contributions} />
         </section>
 
-        <section className="mt-10">
-          <div className="mb-5 flex items-end justify-between gap-4">
+        <section className="relative z-10 mt-16">
+          <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
                 Showcase
               </p>
-              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white">Projects</h2>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Projects</h2>
             </div>
             <span className="text-sm text-zinc-500">{filteredProjects.length} shown</span>
           </div>
 
-          <ProjectFilterBar
-            tags={tags}
-            selectedTag={selectedTag}
-            onTagChange={setSelectedTag}
-          />
+          <div className="rounded-xl border border-white/8 bg-zinc-900/70 p-4 shadow-lg shadow-black/10 sm:p-5">
+            <ProjectFilterBar
+              tags={tags}
+              selectedTag={selectedTag}
+              onTagChange={setSelectedTag}
+            />
+          </div>
 
           {isLoading ? (
             <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading projects">
@@ -302,18 +314,16 @@ export default function DashboardPage() {
               </div>
             )
           ) : (
-            <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-7 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredProjects.map((project) => (
                 <ProjectCard
                   key={project._id}
-                  id={project._id}
                   title={project.title}
                   description={project.description}
                   techStack={project.techStack}
                   githubUrl={project.githubUrl}
-                  likes={project.likes}
                   onEdit={() => openEditModal(project)}
-                  onDelete={() => void handleDelete(project)}
+                  onDelete={() => requestDelete(project)}
                   onDetails={() => setDetailsProject(project)}
                 />
               ))}
@@ -473,6 +483,59 @@ export default function DashboardPage() {
                   Open repository
                 </a>
               ) : null}
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {deletingProject ? (
+        <div
+          className="fixed inset-0 z-60 flex items-end justify-center bg-black/75 p-4 backdrop-blur-sm sm:items-center"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setDeletingProject(null);
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-project-title"
+            aria-describedby="delete-project-description"
+            className="w-full max-w-md rounded-2xl border border-rose-300/20 bg-zinc-900 p-6 shadow-2xl shadow-black/50"
+          >
+            <div className="flex items-start gap-4">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-rose-400/10 text-rose-300">
+                <AlertTriangle aria-hidden="true" size={22} />
+              </span>
+              <div>
+                <h2 id="delete-project-title" className="text-lg font-semibold text-white">
+                  Delete project?
+                </h2>
+                <p id="delete-project-description" className="mt-2 text-sm leading-6 text-zinc-400">
+                  <span className="font-medium text-zinc-200">{deletingProject.title}</span> will be permanently removed. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeletingProject(null)}
+                className="inline-flex items-center justify-center rounded-md border border-white/10 px-4 py-2.5 text-sm font-semibold text-zinc-300 transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => void confirmDelete()}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-rose-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-rose-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-wait disabled:opacity-60"
+              >
+                <Trash2 aria-hidden="true" size={16} />
+                {isDeleting ? "Deleting..." : "Delete project"}
+              </button>
             </div>
           </section>
         </div>
