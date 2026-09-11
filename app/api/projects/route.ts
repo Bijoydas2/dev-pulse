@@ -15,7 +15,8 @@ export async function GET() {
       .lean();
 
     return NextResponse.json(projects);
-  } catch {
+  } catch (error) {
+    console.error("Unable to fetch projects", error);
     return NextResponse.json(
       { error: "Unable to fetch projects" },
       { status: 500 },
@@ -32,11 +33,10 @@ export async function POST(request: Request) {
       typeof title !== "string" ||
       !title.trim() ||
       typeof description !== "string" ||
-      !description.trim() ||
-      !Types.ObjectId.isValid(userId)
+      !description.trim()
     ) {
       return NextResponse.json(
-        { error: "title, description, and a valid userId are required" },
+        { error: "title and description are required" },
         { status: 400 },
       );
     }
@@ -54,9 +54,20 @@ export async function POST(request: Request) {
 
     await connectToDatabase();
 
-    const userExists = await User.exists({ _id: userId });
-    if (!userExists) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    let user = Types.ObjectId.isValid(userId)
+      ? await User.findById(userId)
+      : null;
+
+    if (!user) {
+      user = await User.findOne();
+    }
+
+    if (!user) {
+      user = await User.create({
+        name: "Bijoy",
+        email: "bijoy@devpulse.com",
+        streakCount: 1,
+      });
     }
 
     const project = await Project.create({
@@ -64,7 +75,7 @@ export async function POST(request: Request) {
       description: description.trim(),
       techStack,
       githubUrl,
-      userId,
+      userId: user._id,
     });
 
     const populatedProject = await project.populate(
@@ -73,7 +84,8 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(populatedProject, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("Unable to create project", error);
     return NextResponse.json(
       { error: "Unable to create project" },
       { status: 500 },

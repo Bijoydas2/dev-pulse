@@ -8,12 +8,16 @@ type ProjectFilterBarProps = {
   onTagChange: (tag: string) => void;
 };
 
+function normalizeTag(tag: string) {
+  return tag.trim().replace(/^#+/, "").toLowerCase();
+}
+
 export default function ProjectFilterBar({
   tags,
   selectedTag,
   onTagChange,
 }: ProjectFilterBarProps) {
-  const uniqueTags = Array.from(new Set(tags.map((tag) => tag.replace(/^#/, ""))));
+  const uniqueTags = Array.from(new Set(tags.map(normalizeTag).filter(Boolean)));
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

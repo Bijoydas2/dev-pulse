@@ -1,39 +1,82 @@
 "use client";
 
-import { ExternalLink, Heart } from "lucide-react";
+import { ExternalLink, Heart, Info, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export type ProjectCardData = {
+  id: string;
   title: string;
   description: string;
   techStack: string[];
   githubUrl?: string;
   likes?: number;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDetails: () => void;
 };
 
 type ProjectCardProps = ProjectCardData;
 
 export default function ProjectCard({
+  id,
   title,
   description,
   techStack,
   githubUrl,
   likes = 0,
+  onEdit,
+  onDelete,
+  onDetails,
 }: ProjectCardProps) {
   const [isLiked, setIsLiked] = useState(false);
-  const likeCount = likes + (isLiked ? 1 : 0);
+  const [likeCount, setLikeCount] = useState(likes);
+  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
+
+  async function toggleLike() {
+    if (isUpdatingLike) {
+      return;
+    }
+
+    const nextLiked = !isLiked;
+    const previousLiked = isLiked;
+    const previousCount = likeCount;
+    setIsLiked(nextLiked);
+    setLikeCount((count) => count + (nextLiked ? 1 : -1));
+    setIsUpdatingLike(true);
+
+    try {
+      const response = await fetch(`/api/projects/${id}/like`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ liked: nextLiked }),
+      });
+      if (!response.ok) {
+        throw new Error("Unable to update like");
+      }
+
+      const data = (await response.json()) as { likes: number };
+      setLikeCount(data.likes);
+    } catch {
+      setIsLiked(previousLiked);
+      setLikeCount(previousCount);
+    } finally {
+      setIsUpdatingLike(false);
+    }
+  }
 
   return (
-    <article className="flex h-full flex-col rounded-xl border border-white/10 bg-zinc-900 p-5 text-zinc-100 shadow-lg shadow-black/10 transition-colors hover:border-emerald-400/40">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-zinc-900 p-5 text-zinc-100 shadow-lg shadow-black/10 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/50 hover:shadow-[0_0_30px_-12px_rgba(52,211,153,0.7)]">
+      <div className="pointer-events-none absolute inset-x-8 -top-px h-px bg-linear-to-r from-transparent via-emerald-300/80 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <div className="flex items-start justify-between gap-4">
-        <h3 className="text-lg font-semibold tracking-tight text-white">{title}</h3>
+        <h3 className="text-xl font-semibold tracking-tight text-white">{title}</h3>
         <button
           type="button"
           aria-label={isLiked ? `Unlike ${title}` : `Like ${title}`}
           aria-pressed={isLiked}
           title={isLiked ? "Unlike project" : "Like project"}
-          onClick={() => setIsLiked((liked) => !liked)}
-          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+          onClick={() => void toggleLike()}
+          disabled={isUpdatingLike}
+          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-wait disabled:opacity-70 ${
             isLiked
               ? "text-rose-400 hover:bg-rose-400/10"
               : "text-zinc-500 hover:bg-white/6 hover:text-rose-300"
@@ -50,7 +93,7 @@ export default function ProjectCard({
         {techStack.map((technology) => (
           <span
             key={technology}
-            className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-300"
+            className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-emerald-200"
           >
             #{technology.replace(/^#/, "")}
           </span>
@@ -62,12 +105,43 @@ export default function ProjectCard({
           href={githubUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-5 inline-flex w-fit items-center gap-2 text-sm font-medium text-zinc-300 transition-colors hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-400"
+          className="mt-5 inline-flex w-fit items-center gap-2 text-sm font-medium text-zinc-400 transition-all hover:translate-x-0.5 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-400"
         >
           View repository
-          <ExternalLink aria-hidden="true" size={15} />
+          <ExternalLink aria-hidden="true" size={15} className="transition-transform group-hover:translate-x-0.5" />
         </a>
       ) : null}
+
+      <div className="mt-5 flex items-center justify-between border-t border-white/8 pt-4">
+        <button
+          type="button"
+          onClick={onDetails}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-emerald-400"
+        >
+          <Info aria-hidden="true" size={14} />
+          Details
+        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${title}`}
+            title="Edit project"
+            className="rounded-md p-2 text-zinc-500 transition-colors hover:bg-white/6 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-emerald-400"
+          >
+            <Pencil aria-hidden="true" size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${title}`}
+            title="Delete project"
+            className="rounded-md p-2 text-zinc-500 transition-colors hover:bg-rose-400/10 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-rose-400"
+          >
+            <Trash2 aria-hidden="true" size={15} />
+          </button>
+        </div>
+      </div>
     </article>
   );
 }

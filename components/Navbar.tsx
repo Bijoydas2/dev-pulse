@@ -1,4 +1,5 @@
-import { Activity, Home, LayoutDashboard } from "lucide-react";
+import { Home, LayoutDashboard } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 const navigation = [
@@ -17,8 +18,15 @@ export default function Navbar() {
           href="/"
           className="group flex items-center gap-2.5 rounded-md text-base font-semibold tracking-tight transition-colors hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-400"
         >
-          <span className="flex size-8 items-center justify-center rounded-md bg-emerald-400 text-zinc-950 transition-colors group-hover:bg-emerald-300">
-            <Activity aria-hidden="true" size={18} strokeWidth={2.5} />
+          <span className="flex size-8 items-center justify-center overflow-hidden rounded-md bg-white transition-colors group-hover:bg-emerald-100">
+            <Image
+              src="/logo.png"
+              alt=""
+              width={32}
+              height={32}
+              className="size-8 object-cover"
+              priority
+            />
           </span>
           <span>DevPulse</span>
         </Link>
